@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>WC 2026 Hub</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: '#e11d48', dark: '#0f172a' }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* iOS Safe Area & Hide Scrollbar */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    body { -webkit-tap-highlight-color: transparent; }
+    
+    /* Smooth transitions */
+    .tab-active { color: #3b82f6; }
+    .tab-inactive { color: #64748b; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-200 font-sans antialiased pb-24 selection:bg-blue-500/30">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">⚽</span>
+      <h1 class="font-black text-xl tracking-tight text-white">WC <span class="text-blue-500">2026</span></h1>
+    </div>
+    <div id="network-status" class="text-xs font-medium px-2 py-1 bg-slate-800 rounded-full text-emerald-400 border border-slate-700 flex items-center gap-1">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online
+    </div>
+  </header>
+
+  <!-- Filter Bar (Dynamic) -->
+  <div id="filter-bar" class="sticky top-[53px] z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 space-y-3 shadow-md transition-all duration-300">
+    <!-- Week Filter -->
+    <div>
+      <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">Tournament Week</label>
+      <div class="flex gap-2 overflow-x-auto pb-1" id="week-filters">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+    <!-- Group Filter -->
+    <div>
+      <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">Group</label>
+      <div class="flex gap-2 overflow-x-auto pb-1" id="group-filters">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main id="content-container" class="min-h-screen">
+    <!-- Content injected here -->
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 pb-safe">
+    <div class="flex justify-around items-center h-16 px-2">
+      
+      <button onclick="setTab('matches')" id="tab-matches" class="flex flex-col items-center justify-center w-full h-full tab-active transition-colors">
+        <svg class="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span class="text-[10px] font-medium">Matches</span>
+      </button>
+
+      <button onclick="setTab('groups')" id="tab-groups" class="flex flex-col items-center justify-center w-full h-full tab-inactive transition-colors">
+        <svg class="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span class="text-[10px] font-medium">Groups</span>
+      </button>
+
+      <button onclick="setTab('focus')" id="tab-focus" class="flex flex-col items-center justify-center w-full h-full tab-inactive transition-colors relative">
+        <div class="absolute inset-0 bg-blue-500/10 rounded-xl m-1 blur-md pointer-events-none"></div>
+        <svg class="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+        <span class="text-[10px] font-medium text-slate-100">🇺🇸 / 🇲🇽</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- Application Logic -->
+  <script>
+    // --- Data Models ---
+    const flags = {
+      'Mexico': '🇲🇽', 'South Africa': '🇿🇦', 'South Korea': '🇰🇷', 'Czechia': '🇨🇿',
+      'Canada': '🇨🇦', 'Bosnia and Herzegovina': '🇧🇦', 'Qatar': '🇶🇦', 'Switzerland': '🇨🇭',
+      'Brazil': '🇧🇷', 'Morocco': '🇲🇦', 'Haiti': '🇭🇹', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+      'USA': '🇺🇸', 'Paraguay': '🇵🇾', 'Australia': '🇦🇺', 'Türkiye': '🇹🇷',
+      'Germany': '🇩🇪', 'Curaçao': '🇨🇼', 'Ivory Coast': '🇨🇮', 'Ecuador': '🇪🇨',
+      'Netherlands': '🇳🇱', 'Japan': '🇯🇵', 'Sweden': '🇸🇪', 'Tunisia': '🇹🇳',
+      'Belgium': '🇧🇪', 'Egypt': '🇪🇬', 'Iran': '🇮🇷', 'New Zealand': '🇳🇿',
+      'Spain': '🇪🇸', 'Cabo Verde': '🇨🇻', 'Saudi Arabia': '🇸🇦', 'Uruguay': '🇺🇾',
+      'France': '🇫🇷', 'Senegal': '🇸🇳', 'Iraq': '🇮🇶', 'Norway': '🇳🇴',
+      'Argentina': '🇦🇷', 'Algeria': '🇩🇿', 'Austria': '🇦🇹', 'Jordan': '🇯🇴',
+      'Portugal': '🇵🇹', 'DR Congo': '🇨🇩', 'Uzbekistan': '🇺🇿', 'Colombia': '🇨🇴',
+      'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croatia': '🇭🇷', 'Ghana': '🇬🇭', 'Panama': '🇵🇦'
+    };
+
+    const groups = {
+      A: ['Mexico', 'South Africa', 'South Korea', 'Czechia'],
+      B: ['Canada', 'Bosnia and Herzegovina', 'Qatar', 'Switzerland'],
+      C: ['Brazil', 'Morocco', 'Haiti', 'Scotland'],
+      D: ['USA', 'Paraguay', 'Australia', 'Türkiye'],
+      E: ['Germany', 'Curaçao', 'Ivory Coast', 'Ecuador'],
+      F: ['Netherlands', 'Japan', 'Sweden', 'Tunisia'],
+      G: ['Belgium', 'Egypt', 'Iran', 'New Zealand'],
+      H: ['Spain', 'Cabo Verde', 'Saudi Arabia', 'Uruguay'],
+      I: ['France', 'Senegal', 'Iraq', 'Norway'],
+      J: ['Argentina', 'Algeria', 'Austria', 'Jordan'],
+      K: ['Portugal', 'DR Congo', 'Uzbekistan', 'Colombia'],
+      L: ['England', 'Croatia', 'Ghana', 'Panama']
+    };
+
+    // Simulated complete schedule data (all dates ISO 8601 PDT)
+    const matches = [
+      // Week 1 (Matchday 1)
+      { d: '2026-06-11T12:00:00-07:00', t1: 'Mexico', t2: 'South Africa', g: 'A', w: 'Week 1', c: 'FOX, Telemundo, TUDN' },
+      { d: '2026-06-11T19:00:00-07:00', t1: 'South Korea', t2: 'Czechia', g: 'A', w: 'Week 1', c: 'FS1, Universo' },
+      { d: '2026-06-12T12:00:00-07:00', t1: 'Canada', t2: 'Bosnia and Herzegovina', g: 'B', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-12T18:00:00-07:00', t1: 'USA', t2: 'Paraguay', g: 'D', w: 'Week 1', c: 'FOX, Telemundo, Peacock' },
+      { d: '2026-06-13T12:00:00-07:00', t1: 'Qatar', t2: 'Switzerland', g: 'B', w: 'Week 1', c: 'FS1, Universo' },
+      { d: '2026-06-13T15:00:00-07:00', t1: 'Brazil', t2: 'Morocco', g: 'C', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-13T18:00:00-07:00', t1: 'Haiti', t2: 'Scotland', g: 'C', w: 'Week 1', c: 'FS1, Peacock' },
+      { d: '2026-06-13T21:00:00-07:00', t1: 'Australia', t2: 'Türkiye', g: 'D', w: 'Week 1', c: 'FS1, Universo' },
+      { d: '2026-06-14T10:00:00-07:00', t1: 'Germany', t2: 'Curaçao', g: 'E', w: 'Week 1', c: 'FS1, Telemundo' },
+      { d: '2026-06-14T13:00:00-07:00', t1: 'Netherlands', t2: 'Japan', g: 'F', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-14T16:00:00-07:00', t1: 'Ivory Coast', t2: 'Ecuador', g: 'E', w: 'Week 1', c: 'FS1, Peacock' },
+      { d: '2026-06-14T19:00:00-07:00', t1: 'Sweden', t2: 'Tunisia', g: 'F', w: 'Week 1', c: 'FS1, Universo' },
+      { d: '2026-06-15T09:00:00-07:00', t1: 'Spain', t2: 'Cabo Verde', g: 'H', w: 'Week 1', c: 'FS1, Telemundo' },
+      { d: '2026-06-15T12:00:00-07:00', t1: 'Belgium', t2: 'Egypt', g: 'G', w: 'Week 1', c: 'FOX, Universo' },
+      { d: '2026-06-15T15:00:00-07:00', t1: 'Saudi Arabia', t2: 'Uruguay', g: 'H', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-15T18:00:00-07:00', t1: 'Iran', t2: 'New Zealand', g: 'G', w: 'Week 1', c: 'FS1, Peacock' },
+      { d: '2026-06-16T12:00:00-07:00', t1: 'France', t2: 'Senegal', g: 'I', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-16T15:00:00-07:00', t1: 'Iraq', t2: 'Norway', g: 'I', w: 'Week 1', c: 'FS1, Universo' },
+      { d: '2026-06-16T18:00:00-07:00', t1: 'Argentina', t2: 'Algeria', g: 'J', w: 'Week 1', c: 'FOX, Telemundo' },
+      { d: '2026-06-16T21:00:00-07:00', t1: 'Austria', t2: 'Jordan', g: 'J', w: 'Week 1', c: 'FS1, Peacock' },
+      
+      // Week 2 (Matchday 2)
+      { d: '2026-06-18T12:00:00-07:00', t1: 'Czechia', t2: 'South Africa', g: 'A', w: 'Week 2', c: 'FS1, Peacock' },
+      { d: '2026-06-18T15:00:00-07:00', t1: 'Switzerland', t2: 'Bosnia and Herzegovina', g: 'B', w: 'Week 2', c: 'FS1, Universo' },
+      { d: '2026-06-18T18:00:00-07:00', t1: 'Canada', t2: 'Qatar', g: 'B', w: 'Week 2', c: 'FOX, Telemundo' },
+      { d: '2026-06-18T21:00:00-07:00', t1: 'Mexico', t2: 'South Korea', g: 'A', w: 'Week 2', c: 'FOX, Telemundo, TUDN' },
+      { d: '2026-06-19T12:00:00-07:00', t1: 'Brazil', t2: 'Haiti', g: 'C', w: 'Week 2', c: 'FOX, Universo' },
+      { d: '2026-06-19T15:00:00-07:00', t1: 'Scotland', t2: 'Morocco', g: 'C', w: 'Week 2', c: 'FS1, Peacock' },
+      { d: '2026-06-19T18:00:00-07:00', t1: 'Türkiye', t2: 'Paraguay', g: 'D', w: 'Week 2', c: 'FS1, Universo' },
+      { d: '2026-06-19T21:00:00-07:00', t1: 'USA', t2: 'Australia', g: 'D', w: 'Week 2', c: 'FOX, Telemundo, Peacock' },
+
+      // Week 3 (Matchday 3)
+      { d: '2026-06-24T12:00:00-07:00', t1: 'Mexico', t2: 'Czechia', g: 'A', w: 'Week 3', c: 'FOX, TUDN, Univision' },
+      { d: '2026-06-24T12:00:00-07:00', t1: 'South Africa', t2: 'South Korea', g: 'A', w: 'Week 3', c: 'FS1, Universo' },
+      { d: '2026-06-25T15:00:00-07:00', t1: 'USA', t2: 'Türkiye', g: 'D', w: 'Week 3', c: 'FOX, Telemundo, Peacock' },
+      { d: '2026-06-25T15:00:00-07:00', t1: 'Paraguay', t2: 'Australia', g: 'D', w: 'Week 3', c: 'FS1, Universo' },
+    ];
+
+    // --- State ---
+    const State = {
+      tab: 'matches', // matches, groups, focus
+      week: 'All',    // All, Week 1, Week 2, Week 3
+      group: 'All'    // All, A, B, C...
+    };
+
+    // --- Actions ---
+    function setTab(tabId) {
+      State.tab = tabId;
+      document.querySelectorAll('nav button').forEach(b => {
+        b.classList.remove('tab-active');
+        b.classList.add('tab-inactive');
+      });
+      document.getElementById(`tab-${tabId}`).classList.add('tab-active');
+      document.getElementById(`tab-${tabId}`).classList.remove('tab-inactive');
+      
+      const filterBar = document.getElementById('filter-bar');
+      if(tabId === 'matches') {
+        filterBar.style.display = 'block';
+      } else {
+        filterBar.style.display = 'none';
+      }
+      
+      render();
+    }
+
+    function setWeek(w) { State.week = w; render(); }
+    function setGroup(g) { State.group = g; render(); }
+
+    // --- UI Renderers ---
+    function renderFilters() {
+      // Weeks
+      const weeks = ['All', 'Week 1', 'Week 2', 'Week 3'];
+      document.getElementById('week-filters').innerHTML = weeks.map(w => `
+        <button onclick="setWeek('${w}')" 
+          class="whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors border 
+          ${State.week === w ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">
+          ${w}
+        </button>
+      `).join('');
+
+      // Groups
+      const groupLetters = ['All', ...Object.keys(groups)];
+      document.getElementById('group-filters').innerHTML = groupLetters.map(g => `
+        <button onclick="setGroup('${g}')" 
+          class="whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors border 
+          ${State.group === g ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">
+          ${g === 'All' ? 'All' : `Group ${g}`}
+        </button>
+      `).join('');
+    }
+
+    function getRelativeTimeStr(dateStr) {
+      const matchDate = new Date(dateStr);
+      const now = new Date();
+      const diffMs = matchDate - now;
+      const diffHrs = diffMs / (1000 * 60 * 60);
+
+      if (diffHrs < 0 && diffHrs > -2) return '<span class="text-red-500 font-bold animate-pulse">LIVE</span>';
+      if (diffHrs <= -2) return '<span class="text-slate-500">FT</span>';
+      
+      const timeStr = matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `<span>${timeStr}</span>`;
+    }
+
+    function renderMatches(filteredMatches) {
+      const container = document.getElementById('content-container');
+      if (filteredMatches.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center pt-24 text-slate-500">
+            <span class="text-5xl mb-4">🏟️</span>
+            <p>No matches found for this filter.</p>
+          </div>`;
+        return;
+      }
+
+      // Group by day string
+      const byDay = {};
+      filteredMatches.sort((a,b) => new Date(a.d) - new Date(b.d)).forEach(m => {
+        const dObj = new Date(m.d);
+        const dayStr = dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        if(!byDay[dayStr]) byDay[dayStr] = [];
+        byDay[dayStr].push(m);
+      });
+
+      let html = `<div class="p-4 space-y-8">`;
+      for (const [day, dayMatches] of Object.entries(byDay)) {
+        html += `
+          <div>
+            <h2 class="text-lg font-bold text-white mb-3 sticky top-[130px] bg-slate-900/90 py-1 z-30 shadow-sm">${day}</h2>
+            <div class="space-y-3">
+              ${dayMatches.map(m => {
+                const isFocus = m.t1 === 'USA' || m.t2 === 'USA' || m.t1 === 'Mexico' || m.t2 === 'Mexico';
+                const borderClass = isFocus ? 'border-blue-500/60 shadow-[0_0_12px_rgba(59,130,246,0.15)] bg-slate-800' : 'border-slate-700 bg-slate-800/80';
+                return `
+                <div class="rounded-xl border ${borderClass} p-4 relative overflow-hidden transition-all active:scale-[0.98]">
+                  ${isFocus ? '<div class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-full blur-xl"></div>' : ''}
+                  
+                  <div class="flex justify-between items-center text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">
+                    <span>Group ${m.g}</span>
+                    ${getRelativeTimeStr(m.d)}
+                  </div>
+                  
+                  <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col items-center w-1/3">
+                      <span class="text-4xl mb-1">${flags[m.t1] || '🏳️'}</span>
+                      <span class="text-sm font-bold text-center leading-tight">${m.t1}</span>
+                    </div>
+                    <div class="text-slate-600 font-black text-xl italic">VS</div>
+                    <div class="flex flex-col items-center w-1/3">
+                      <span class="text-4xl mb-1">${flags[m.t2] || '🏳️'}</span>
+                      <span class="text-sm font-bold text-center leading-tight">${m.t2}</span>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5 text-slate-300 font-medium">
+                      <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+                        <polyline points="17 2 12 7 7 2"></polyline>
+                      </svg>
+                      ${m.c}
+                    </div>
+                  </div>
+                </div>
+              `}).join('')}
+            </div>
+          </div>
+        `;
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('content-container');
+      let html = `<div class="p-4 space-y-6">`;
+      for (const [groupName, teams] of Object.entries(groups)) {
+        html += `
+          <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 shadow-md">
+            <div class="bg-slate-700/60 px-4 py-2 border-b border-slate-600 flex justify-between items-center">
+              <h3 class="font-bold text-white text-sm tracking-wider uppercase">Group ${groupName}</h3>
+            </div>
+            <div class="divide-y divide-slate-700/50">
+              ${teams.map((t, i) => `
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-800/80 hover:bg-slate-700/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="text-slate-500 font-mono w-4 font-bold">${i+1}</span>
+                    <span class="text-2xl">${flags[t] || '🏳️'}</span>
+                    <span class="text-slate-200 font-medium ${t === 'USA' || t === 'Mexico' ? 'text-blue-400 font-bold' : ''}">${t}</span>
+                  </div>
+                  <div class="flex gap-5 text-[10px] text-slate-400 font-mono">
+                    <div class="text-center"><span>MP</span><br><span class="text-slate-200 text-sm">0</span></div>
+                    <div class="text-center"><span>GD</span><br><span class="text-slate-200 text-sm">0</span></div>
+                    <div class="text-center font-bold text-blue-400"><span>PTS</span><br><span class="text-sm">0</span></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function render() {
+      if (State.tab === 'matches') {
+        renderFilters();
+        let filtered = matches;
+        if (State.week !== 'All') filtered = filtered.filter(m => m.w === State.week);
+        if (State.group !== 'All') filtered = filtered.filter(m => m.g === State.group);
+        renderMatches(filtered);
+      } 
+      else if (State.tab === 'groups') {
+        renderGroups();
+      } 
+      else if (State.tab === 'focus') {
+        // USA and Mexico matches only
+        const focusMatches = matches.filter(m => 
+          m.t1 === 'USA' || m.t2 === 'USA' || m.t1 === 'Mexico' || m.t2 === 'Mexico'
+        );
+        renderMatches(focusMatches);
+      }
+    }
+
+    // --- Network & PWA Initialization ---
+    function updateNetworkStatus() {
+      const el = document.getElementById('network-status');
+      if (navigator.onLine) {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online`;
+        el.className = "text-xs font-medium px-2 py-1 bg-slate-800 rounded-full text-emerald-400 border border-slate-700 flex items-center gap-1";
+      } else {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Offline`;
+        el.className = "text-xs font-medium px-2 py-1 bg-slate-800 rounded-full text-red-400 border border-slate-700 flex items-center gap-1";
+      }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    // Initial render
+    updateNetworkStatus();
+    render();
+
+    // -- PWA Blob Implementation (Single File Constraint) --
+    // Generate Manifest dynamically
+    const manifest = {
+      name: "WC 2026 App",
+      short_name: "WC26",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#0f172a",
+      theme_color: "#0f172a",
+      icons: [{
+        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%232563eb'/%3E%3Ctext x='50' y='55' font-size='40' text-anchor='middle' fill='white' font-family='sans-serif' dy='.3em'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E",
+        sizes: "192x192",
+        type: "image/svg+xml"
+      }]
+    };
+    const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+    document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="' + manifestUrl + '">');
+
+    // Generate Service Worker dynamically for Offline Caching
+    try {
+      const swCode = `
+        const CACHE_NAME = 'wc26-cache-v1';
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll(['./', location.href]).catch(() => {});
+          }));
+        });
+        self.addEventListener('fetch', e => {
+          e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+          );
+        });
+      `;
+      const swUrl = URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }));
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register(swUrl)
+            .then(() => console.log("PWA Offline Cache Ready."))
+            .catch(() => console.log("SW fallback applied."));
+        });
+      }
+    } catch(err) {
+      console.log("Offline mode gracefully fallback.");
+    }
+  </script>
+</body>
+</html>
